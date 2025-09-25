@@ -44,8 +44,8 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                          API Gateway Layer                           │
-│                    (Authentication & Rate Limiting)                  │
+│                          API Gateway Layer                          │
+│                    (Authentication & Rate Limiting)                 │
 └─────────────────────────────────────────────────────────────────────┘
                                     │
         ┌───────────────────────────┼───────────────────────────┐
@@ -63,12 +63,12 @@
                                     │
                     ┌───────────────▼───────────────┐
                     │   PostgreSQL Database Cluster │
-                    │                                │
+                    │                               │
                     │ • Time-series Tables          │
                     │ • User Management             │
                     │ • Alert History               │
-                    │ • Comments & Feedback        │
-                    └────────────────────────────────┘
+                    │ • Comments & Feedback         │
+                    └───────────────────────────────┘
 ```
 
 ### Data Flow Architecture

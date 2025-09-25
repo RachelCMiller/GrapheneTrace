@@ -5,7 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace GrapheneTrace.Models;
+namespace GrapheneTrace.Core.Models;
 
 /// <summary>
 /// Represents a 32x32 matrix of pressure readings for graphene trace analysis.
