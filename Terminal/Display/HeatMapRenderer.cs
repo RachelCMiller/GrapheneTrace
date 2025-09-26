@@ -404,14 +404,16 @@ public class HeatMapRenderer
         var metricsX = PressureMap.MATRIX_SIZE * _cellWidth + BORDER_WIDTH * 2 + 2;
         var metricsY = TITLE_HEIGHT + 12;
 
+        const int FIELD_WIDTH = 35; // Fixed width to ensure proper clearing of longest text
+
         var metricsText = new[]
         {
-            $"Peak Pressure: {metrics.PeakPressure}",
-            $"Contact Area: {metrics.ContactAreaPercentage:F1}%",
-            $"Alert Status: {metrics.AlertStatus}",
-            $"Color Mode: {metrics.ColorMode}",
-            $"Frame Rate: {metrics.FrameRate:F1} FPS",
-            $"Last Update: {metrics.LastUpdate:HH:mm:ss}"
+            $"Peak Pressure: {metrics.PeakPressure}".PadRight(FIELD_WIDTH),
+            $"Contact Area: {metrics.ContactAreaPercentage:F1}%".PadRight(FIELD_WIDTH),
+            $"Alert Status: {metrics.AlertStatus}".PadRight(FIELD_WIDTH),
+            $"Color Mode: {metrics.ColorMode}".PadRight(FIELD_WIDTH),
+            $"Frame Rate: {metrics.FrameRate:F1} FPS".PadRight(FIELD_WIDTH),
+            $"Last Update: {metrics.LastUpdate:HH:mm:ss}".PadRight(FIELD_WIDTH)
         };
 
         for (int i = 0; i < metricsText.Length; i++)
