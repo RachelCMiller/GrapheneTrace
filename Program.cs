@@ -95,8 +95,8 @@ class Program
         Console.WriteLine("│  ● Professional medical device interface                │");
         Console.WriteLine("│                                                         │");
         Console.WriteLine("│  Controls:                                              │");
-        Console.WriteLine("│  [G] Gradient Mode    [R] Range Mode                    │");
-        Console.WriteLine("│  [P] Pause/Resume     [Q] Quit                          │");
+        Console.WriteLine("│  [G]radient Mode      [R]ange Mode                      │");
+        Console.WriteLine("│  [P]ause/Resume       [Q]uit                            │");
         Console.WriteLine("│  [1-4] Demo Scenarios                                   │");
         Console.WriteLine("│                                                         │");
         Console.WriteLine("│  Starting demonstration in 3 seconds...                 │");
