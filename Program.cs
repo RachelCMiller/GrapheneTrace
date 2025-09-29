@@ -25,6 +25,9 @@ namespace GrapheneTrace;
 /// - [Q] Quit application
 /// - [1-4] Switch simulation scenarios
 /// </remarks>
+/// <author>
+/// Thomas J. Kenner - tjk118@student.aru.ac.uk - 2412494
+/// </author>
 class Program
 {
     private static HeatMapRenderer? _renderer;
@@ -393,7 +396,8 @@ class Program
             _renderer?.Cleanup();
 
             Console.Clear();
-            Console.WriteLine("\n╭─────────────────────────────────────────────╮");
+            Console.WriteLine("\n");
+            Console.WriteLine("╭─────────────────────────────────────────────╮");
             Console.WriteLine("│                                             │");
             Console.WriteLine("│          GrapheneTrace Demo Complete        │");
             Console.WriteLine("│                                             │");

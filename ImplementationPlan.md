@@ -28,7 +28,7 @@
 
 ### Reporting & Visualization
 - **G5.1**: Generate comparative reports (day-over-day, hour-over-hour) in under 2 seconds
-- **G5.2**: Console visualization updated at minimum 10 FPS for real-time monitoring
+- **G5.2**: Web visualization (Blazor) updates at minimum 10 FPS for real-time monitoring
 - **G5.3**: Support export of reports in CSV and JSON formats
 - **G5.4**: Maintain 6-month rolling window of historical data for comparisons
 
@@ -40,60 +40,64 @@
 
 ## 2. Overall Implementation Architecture
 
-### System Architecture Pattern: **Event-Driven Microservice Architecture**
+### System Architecture Pattern: **Blazor Server + Background Services (Modular Monolith)**
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                          API Gateway Layer                          │
-│                    (Authentication & Rate Limiting)                 │
-└─────────────────────────────────────────────────────────────────────┘
-                                    │
-        ┌───────────────────────────┼───────────────────────────┐
-        │                           │                           │
-┌───────▼────────┐         ┌───────▼────────┐         ┌───────▼────────┐
-│  Data Ingestion│         │   Processing   │         │    Query       │
-│    Service     │────────▶│    Pipeline    │         │   Service      │
-│                │         │                │         │                │
-│ • Mock Sensors │         │ • Alert Engine │         │ • User Queries │
-│ • CSV Import   │         │ • Metric Calc  │         │ • Reports      │
-│ • Validation   │         │ • Persistence  │         │ • Analytics    │
-└────────────────┘         └────────────────┘         └────────────────┘
-        │                           │                           │
-        └───────────────────────────┼───────────────────────────┘
-                                    │
-                    ┌───────────────▼───────────────┐
-                    │   PostgreSQL Database Cluster │
-                    │                               │
-                    │ • Time-series Tables          │
-                    │ • User Management             │
-                    │ • Alert History               │
-                    │ • Comments & Feedback         │
-                    └───────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                Browser (Blazor)                             │
+│     Razor Components  │ MudBlazor UI  │ LiveCharts  │ Auth (Cookies/JWT)    │
+└─────────────────────────────────────┬───────────────────────────────────────┘
+                                      │
+                           SignalR (real-time updates)
+                                      │
+┌─────────────────────────────────────▼───────────────────────────────────────┐
+│                          ASP.NET Core Blazor Server                         │
+│  • Razor Pages/Components  • Controllers (exports)  • AuthN/AuthZ (Identity)│
+│  • SignalR Hubs            • Minimal APIs (optional)                        │
+└─────────────────────────────────────┬───────────────────────────────────────┘
+                                      │
+                   ┌──────────────────┼──────────────────────────┐
+                   │                  │                          │
+        ┌──────────▼──────────┐  ┌────▼──────────────┐  ┌────────▼─────────┐
+        │  Ingestion Workers  │  │ Processing Engine │  │  Caching Layer   │
+        │ (Hosted Services)   │  │  (Metrics/Alerts) │  │ (Memory/Redis)   │
+        │ • Mock Sensors      │  │ • Metric Calc     │  │ • Hot data cache │
+        │ • CSV Import        │  │ • Alert Engine    │  │                  │
+        │ • Validation        │  │ • Persistence     │  │                  │
+        └─────────────────────┘  └────┬──────────────┘  └──────────────────┘
+                                      │
+                            ┌─────────▼─────────┐
+                            │  PostgreSQL 16    │
+                            │  • Time-series    │
+                            │  • Users & Roles  │
+                            │  • Alerts/Comments│
+                            └───────────────────┘
 ```
 
 ### Data Flow Architecture
 
 1. **Ingestion Phase**
-   - Mock sensors generate data streams with unique device IDs
+   - Hosted services simulate/ingest sensor streams (unique device IDs)
    - Data validated against 32x32 matrix constraints
    - Tagged with user ID, timestamp, and session ID
-   - Published to message queue for processing
+   - Enqueued to in-process channels for processing
 
 2. **Processing Pipeline**
-   - Event-driven processing using background services
-   - Parallel computation of metrics using Task Parallel Library
+   - Background services consume channels for parallel metric computation
    - Real-time alert evaluation against user-specific thresholds
    - Batch writes to PostgreSQL every 100ms for efficiency
+   - SignalR broadcasts updated metrics/alerts to connected Blazor clients
 
 3. **Storage Strategy**
-   - **Hot Storage**: Last 24 hours in memory cache (Redis-like)
+   - **Hot Storage**: Last 24 hours in memory/Redis cache
    - **Warm Storage**: Last 30 days in PostgreSQL with indexes
    - **Cold Storage**: >30 days in compressed format
 
-4. **Query Optimization**
+4. **Query & UI Optimization**
    - Materialized views for common metric aggregations
    - Pre-computed rollups for time-series data
    - Denormalized read models for report generation
+   - UI virtualization for large tables and lazy-loading for charts
 
 ### Database Schema Design
 
@@ -151,9 +155,9 @@ GrapheneTrace/
 │   │   ├── MessageBus.cs              # In-process event bus
 │   │   └── EventHandlers/             # Domain event processors
 │   └── Caching/
-│       └── MemoryCacheService.cs      # IMemoryCache wrapper
+│       └── MemoryCacheService.cs      # IMemoryCache/Redis wrapper
 │
-├── GrapheneTrace.Services/             # Business logic implementation
+├── GrapheneTrace.Services/             # Business and background processing
 │   ├── Ingestion/
 │   │   ├── MockSensorService.cs       # Generates test data streams
 │   │   ├── CsvIngestionService.cs     # Processes CSV imports
@@ -169,23 +173,14 @@ GrapheneTrace/
 │       ├── CommentService.cs           # Comment thread management
 │       └── NotificationService.cs      # Real-time notifications
 │
-├── GrapheneTrace.Api/                  # Web API layer
-│   ├── Controllers/
-│   │   ├── AuthController.cs          # JWT authentication
-│   │   ├── DataController.cs          # Data query endpoints
-│   │   ├── AlertController.cs         # Alert management
-│   │   └── CommentController.cs       # Comment CRUD operations
-│   ├── Middleware/
-│   │   ├── AuthenticationMiddleware.cs
-│   │   └── ExceptionHandlingMiddleware.cs
-│   └── DTOs/                          # Data transfer objects
-│
-├── GrapheneTrace.Console/              # Console visualization
-│   ├── Display/
-│   │   ├── HeatMapRenderer.cs         # ASCII/Unicode heat map
-│   │   ├── MetricDashboard.cs         # Real-time metric display
-│   │   └── ColorMapper.cs             # Pressure-to-color mapping
-│   └── Commands/                      # CLI command handlers
+├── GrapheneTrace.Web/                  # Blazor Server host (UI + API endpoints)
+│   ├── Pages/                          # Razor pages and routes
+│   ├── Components/                     # Reusable Blazor components
+│   ├── Hubs/                           # SignalR hubs for real-time updates
+│   ├── Controllers/                    # Export endpoints, optional APIs
+│   ├── wwwroot/                        # Static assets
+│   ├── App.razor
+│   └── _Imports.razor
 │
 └── GrapheneTrace.Tests/                # Test projects
     ├── Unit/                           # Unit tests per namespace
@@ -198,8 +193,7 @@ GrapheneTrace/
 - **Core**: Pure domain logic, no external dependencies, immutable models
 - **Infrastructure**: Database access, caching, external service integration
 - **Services**: Business rules, orchestration, background processing
-- **Api**: HTTP endpoints, authentication, request/response mapping
-- **Console**: Temporary UI solution, visualization algorithms
+- **Web**: Blazor UI, SignalR hubs, controllers for exports/auth, request mapping
 - **Tests**: Comprehensive test coverage including performance benchmarks
 
 ## 4. Required Dependencies
@@ -214,6 +208,7 @@ GrapheneTrace/
 
 <!-- Authentication & Security -->
 <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.8" />
+<PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" />
 <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
 
 <!-- Background Processing -->
@@ -229,14 +224,15 @@ GrapheneTrace/
 <PackageReference Include="MediatR" Version="12.3.0" />
 <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
 
+<!-- Blazor UI & Real-time -->
+<PackageReference Include="MudBlazor" />
+<PackageReference Include="LiveChartsCore.SkiaSharpView.Blazor" />
+<PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
+
 <!-- API Development -->
 <PackageReference Include="Swashbuckle.AspNetCore" Version="6.7.0" />
 <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.0" />
 <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="12.0.1" />
-
-<!-- Console UI -->
-<PackageReference Include="Spectre.Console" Version="0.49.1" />
-<PackageReference Include="Terminal.Gui" Version="1.16.0" />
 
 <!-- Testing -->
 <PackageReference Include="xunit" Version="2.9.0" />
@@ -268,6 +264,7 @@ GrapheneTrace/
 - **Docker Desktop**: Container orchestration
 - **pgAdmin**: PostgreSQL management
 - **Postman/Insomnia**: API testing
+- **Playwright**: UI testing for Blazor
 - **k6**: Load testing framework
 
 ## Implementation Priority
@@ -275,29 +272,29 @@ GrapheneTrace/
 ### Phase 1: Foundation (Week 1-2)
 1. Set up PostgreSQL with Docker
 2. Implement Core domain models
-3. Create mock sensor service
-4. Basic data ingestion pipeline
+3. Create mock sensor service and ingestion pipeline (hosted services)
+4. Create Blazor Server project with base layout and navigation
 
-### Phase 2: Processing (Week 2-3)
+### Phase 2: Real-Time Processing & UI (Week 2-3)
 1. Metric calculation service
 2. Alert evaluation engine
-3. Database persistence layer
-4. Basic console visualization
+3. SignalR hub and client integration
+4. Real-time Blazor components (heat map, metrics panel) at 10+ FPS
 
 ### Phase 3: User Management (Week 3-4)
-1. User authentication system
-2. Role-based access control
-3. API endpoints for data access
-4. Comment system implementation
+1. Identity-based authentication (Patients, Clinicians, Admins)
+2. Role-based access control and protected routes
+3. Data access pages (patients, devices, sessions)
+4. Comment system (threaded) with real-time notifications
 
-### Phase 4: Optimization (Week 4-5)
-1. Caching layer implementation
-2. Performance testing and tuning
-3. Report generation service
-4. Enhanced console dashboard
+### Phase 4: Optimization & Reporting (Week 4-5)
+1. Caching layer implementation (memory/Redis)
+2. Performance testing and tuning (p95 <100ms processing)
+3. Report generation service and exports (CSV/JSON)
+4. Enhanced web dashboard (charts, filters, virtualization)
 
 ### Phase 5: Production Readiness (Week 5-6)
-1. Comprehensive testing suite
+1. Comprehensive testing suite (unit, integration, UI)
 2. Monitoring and logging
 3. Documentation
 4. Deployment configuration
