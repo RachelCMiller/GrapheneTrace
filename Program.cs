@@ -28,6 +28,7 @@ namespace GrapheneTrace;
 /// <author>
 /// Thomas J. Kenner - tjk118@student.aru.ac.uk - 2412494
 /// </author>
+/// Hello, testing commits
 class Program
 {
     private static HeatMapRenderer? _renderer;
