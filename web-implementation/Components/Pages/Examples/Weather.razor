@@ -1,5 +1,6 @@
 ﻿@page "/weather"
 @attribute [StreamRendering]
+@using System.Timers
 
 <PageTitle>Weather</PageTitle>
 
@@ -7,58 +8,35 @@
 
 <p>This component demonstrates showing data.</p>
 
-@if (forecasts == null)
+<div style="display:grid;grid-template-columns:repeat(32,10px);grid-template-rows:repeat(32,10px);">
+@for(int y=0;y<32;y++)
 {
-    <p><em>Loading...</em></p>
+    for(int x=0;x<32;x++)
+    {
+        <div style="width:10px;height:10px;background-color:@ColorFor(values[x,y])"></div>
+    }
 }
-else
-{
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th aria-label="Temperature in Celsius">Temp. (C)</th>
-                <th aria-label="Temperature in Farenheit">Temp. (F)</th>
-                <th>Summary</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var forecast in forecasts)
-            {
-                <tr>
-                    <td>@forecast.Date.ToShortDateString()</td>
-                    <td>@forecast.TemperatureC</td>
-                    <td>@forecast.TemperatureF</td>
-                    <td>@forecast.Summary</td>
-                </tr>
-            }
-        </tbody>
-    </table>
-}
+</div>
+
 
 @code {
-    private WeatherForecast[]? forecasts;
+    byte[,] values=new byte[32,32];
+    System.Timers.Timer t;
+    Random r=new();
 
-    protected override async Task OnInitializedAsync()
+
+    protected override void OnInitialized()
     {
-        // Simulate asynchronous loading to demonstrate streaming rendering
-        await Task.Delay(500);
-
-        var startDate = DateOnly.FromDateTime(DateTime.Now);
-        var summaries = new[] { "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching" };
-        forecasts = Enumerable.Range(1, 5).Select(index => new WeatherForecast
-        {
-            Date = startDate.AddDays(index),
-            TemperatureC = Random.Shared.Next(-20, 55),
-            Summary = summaries[Random.Shared.Next(summaries.Length)]
-        }).ToArray();
+        Fill();
+        t=new(100);
+        t.Elapsed+=(s,e)=>{ Fill(); InvokeAsync(StateHasChanged); };
+        t.Start();
     }
-
-    private class WeatherForecast
+    void Fill(){for(int y=0;y<32;y++)for(int x=0;x<32;x++)values[x,y]=(byte)r.Next(256);}
+    
+    string ColorFor(byte count)
     {
-        public DateOnly Date { get; set; }
-        public int TemperatureC { get; set; }
-        public string? Summary { get; set; }
-        public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
+        double hue = 255 - (255.0 * count) / 255;
+        return $"hsl({hue}deg 100% 50%)";
     }
 }
