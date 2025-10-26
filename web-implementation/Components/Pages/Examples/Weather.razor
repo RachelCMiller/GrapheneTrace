@@ -8,32 +8,52 @@
 
 <p>This component demonstrates showing data.</p>
 
+@*Author: 2414111
+creating a 32x32 grid with each box being 10x10px
+for each row go through each column filling with the colour relating to the cell's value*@
 <div style="display:grid;grid-template-columns:repeat(32,10px);grid-template-rows:repeat(32,10px);">
 @for(int y=0;y<32;y++)
 {
     for(int x=0;x<32;x++)
     {
-        <div style="width:10px;height:10px;background-color:@ColorFor(values[x,y])"></div>
+        <div style="width:10px;height:10px;background-color:@ColorFor(data[x,y])"></div>
     }
 }
 </div>
 
 
 @code {
-    byte[,] values=new byte[32,32];
-    System.Timers.Timer t;
-    Random r=new();
+    private readonly byte[,] data = new byte[32, 32];
+    private readonly Random rnd = new();
+    private bool _running = true;
 
-
-    protected override void OnInitialized()
+    @*Async task starts when page loads, keeps refreshing the view every 100ms to update the heatmap*@
+    protected override async Task OnInitializedAsync()
     {
-        Fill();
-        t=new(100);
-        t.Elapsed+=(s,e)=>{ Fill(); InvokeAsync(StateHasChanged); };
-        t.Start();
+        var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(100));
+        while (_running && await timer.WaitForNextTickAsync())
+        {
+            UpdateHeatmap();
+            @*refresh page as something's changed*@
+            await InvokeAsync(StateHasChanged);
+        }
     }
-    void Fill(){for(int y=0;y<32;y++)for(int x=0;x<32;x++)values[x,y]=(byte)r.Next(256);}
+
+    @*placeholder function to generate random numbers, later fill with actual pressure data*@
+    private void UpdateHeatmap()
+    {
+        for (int y = 0; y < 32; y++)
+            for (int x = 0; x < 32; x++)
+                data[x, y] = (byte)rnd.Next(256);
+    }
+
+    public void Dispose()
+    {
+        _running = false;
+    }
     
+    @*convert pressure number to a colour between blue (0) and red (255)
+    start using hue as that's just one number to change and convert to hex in HslToHex*@
     string ColorFor(byte count)
     {
         double hue = 255 - (255.0 * count) / 255;
