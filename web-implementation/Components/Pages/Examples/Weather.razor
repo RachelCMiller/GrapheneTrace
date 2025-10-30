@@ -1,6 +1,5 @@
 ﻿@page "/weather"
 @attribute [StreamRendering]
-@using System.Timers
 
 <PageTitle>Weather</PageTitle>
 
@@ -8,55 +7,58 @@
 
 <p>This component demonstrates showing data.</p>
 
-@*Author: 2414111
-creating a 32x32 grid with each box being 10x10px
-for each row go through each column filling with the colour relating to the cell's value*@
-<div style="display:grid;grid-template-columns:repeat(32,10px);grid-template-rows:repeat(32,10px);">
-@for(int y=0;y<32;y++)
+@if (forecasts == null)
 {
-    for(int x=0;x<32;x++)
-    {
-        <div style="width:10px;height:10px;background-color:@ColorFor(data[x,y])"></div>
-    }
+    <p><em>Loading...</em></p>
 }
-</div>
-
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th aria-label="Temperature in Celsius">Temp. (C)</th>
+                <th aria-label="Temperature in Farenheit">Temp. (F)</th>
+                <th>Summary</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var forecast in forecasts)
+            {
+                <tr>
+                    <td>@forecast.Date.ToShortDateString()</td>
+                    <td>@forecast.TemperatureC</td>
+                    <td>@forecast.TemperatureF</td>
+                    <td>@forecast.Summary</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
 
 @code {
-    private readonly byte[,] data = new byte[32, 32];
-    private readonly Random rnd = new();
-    private bool _running = true;
+    private WeatherForecast[]? forecasts;
 
-    @*Async task starts when page loads, keeps refreshing the view every 100ms to update the heatmap*@
     protected override async Task OnInitializedAsync()
     {
-        var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(100));
-        while (_running && await timer.WaitForNextTickAsync())
+        // Simulate asynchronous loading to demonstrate streaming rendering
+        await Task.Delay(500);
+
+        var startDate = DateOnly.FromDateTime(DateTime.Now);
+        var summaries = new[] { "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching" };
+        forecasts = Enumerable.Range(1, 5).Select(index => new WeatherForecast
         {
-            UpdateHeatmap();
-            @*refresh page as something's changed*@
-            await InvokeAsync(StateHasChanged);
-        }
+            Date = startDate.AddDays(index),
+            TemperatureC = Random.Shared.Next(-20, 55),
+            Summary = summaries[Random.Shared.Next(summaries.Length)]
+        }).ToArray();
     }
 
-    @*placeholder function to generate random numbers, later fill with actual pressure data*@
-    private void UpdateHeatmap()
+    private class WeatherForecast
     {
-        for (int y = 0; y < 32; y++)
-            for (int x = 0; x < 32; x++)
-                data[x, y] = (byte)rnd.Next(256);
-    }
-
-    public void Dispose()
-    {
-        _running = false;
-    }
-    
-    @*convert pressure number to a colour between blue (0) and red (255)
-    start using hue as that's just one number to change and convert to hex in HslToHex*@
-    string ColorFor(byte count)
-    {
-        double hue = 255 - (255.0 * count) / 255;
-        return $"hsl({hue}deg 100% 50%)";
+        public DateOnly Date { get; set; }
+        public int TemperatureC { get; set; }
+        public string? Summary { get; set; }
+        public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
     }
 }

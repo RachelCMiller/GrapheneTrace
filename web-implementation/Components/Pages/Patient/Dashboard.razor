@@ -1,8 +1,11 @@
 @page "/patient/dashboard"
+@layout Layout.MainLayout
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Patient")]
 @using GrapheneTrace.Web.Models
 @using Microsoft.AspNetCore.Components.Authorization
+@using GrapheneTrace.Web.Components.UI
 @inject AuthenticationStateProvider AuthStateProvider
+@rendermode InteractiveServer
 
 @*
     Patient Dashboard Page
@@ -17,6 +20,8 @@
     Current Implementation: Simple placeholder for testing authentication flow.
     Production TODO: Add patient-specific features (personal pressure data, alerts, settings, etc.)
 *@
+
+<link rel="stylesheet" href="css/auth.css" />
 
 <div style="padding: 2rem;">
     <div style="max-width: 64rem; margin: 0 auto;">
@@ -34,6 +39,13 @@
             <p style="color: #6b7280;">
                 View your pressure data and manage your settings.
             </p>
+        </div>
+    
+        <div style="background: white; border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 1rem;">
+            <p style="margin-bottom: 0.5rem;">
+                <strong>Pressure Map</strong>
+            </p>
+            <Heatmap />
         </div>
 
         <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 1.5rem;">

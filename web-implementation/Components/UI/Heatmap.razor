@@ -1,0 +1,89 @@
+@namespace GrapheneTrace.Web.Components.UI
+@using System.Threading
+@implements IAsyncDisposable
+
+@*
+    Author: 2414111
+    creating a 32x32 grid with each box being 10x10px
+    for each row go through each column filling with the colour relating to the cell's value*@
+
+<div style="display: grid; grid-template-columns: repeat(32,10px); grid-template-rows: repeat(32,10px);">
+    @for(int y=0; y<32; y++)
+    {
+        for(int x=0; x<32; x++)
+        {
+            <div style="width: 10px; height: 10px; background-color: @ColorFor(data[x,y])"></div>
+        }
+    }
+</div>
+
+
+@code {
+    private readonly byte[,] data = new byte[32, 32];
+    private readonly Random rnd = new();
+    private CancellationTokenSource? _cts;
+    private Task? _loopTask;
+
+    @*Start background loop*@
+    protected override Task OnInitializedAsync()
+    {
+        _cts = new CancellationTokenSource();
+        _loopTask = RunUpdateLoopAsync(_cts.Token);
+        return Task.CompletedTask;
+    }
+
+    private async Task RunUpdateLoopAsync(CancellationToken ct)
+    {
+        // Use PeriodicTimer but honour cancellation token.
+        using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(100));
+        try
+        {
+            while (!ct.IsCancellationRequested && await timer.WaitForNextTickAsync(ct))
+            {
+                UpdateHeatmap();
+                // Use InvokeAsync to ensure StateHasChanged runs on the right sync context.
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // expected on cancellation
+        }
+    }
+
+    @*placeholder function to generate random numbers, later fill with actual pressure data*@
+    private void UpdateHeatmap()
+    {
+        for (int y = 0; y < 32; y++)
+            for (int x = 0; x < 32; x++)
+                data[x, y] = (byte)rnd.Next(256);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_cts != null && !_cts.IsCancellationRequested)
+        {
+            _cts.Cancel();
+            try
+            {
+                // Wait a short time for the loop to finish.
+                if (_loopTask != null)
+                    await Task.WhenAny(_loopTask, Task.Delay(500));
+            }
+            catch
+            {
+                // ignore exceptions during shutdown
+            }
+            _cts.Dispose();
+            _cts = null;
+        }
+    }
+    
+    @*convert pressure number to a colour between blue (0) and red (255)
+    start using hue as that's just one number to change and convert to hex in HslToHex*@
+    string ColorFor(byte count)
+    {
+        double hue = 255 - (255.0 * count) / 255;
+        return $"hsl({hue}deg 100% 50%)";
+    }
+}
